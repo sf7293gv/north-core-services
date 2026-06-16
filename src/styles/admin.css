@@ -1532,3 +1532,11 @@
   .adm-modal-hd, .adm-modal-ft { padding: 14px 16px; }
   .adm-toast { right: 12px; bottom: 16px; left: 12px; max-width: 100%; }
 }
+
+/* ── Settings input overrides ──────────────────────────────── */
+.admin-settings input,
+.admin-settings textarea,
+.admin-settings select {
+  color: #111827 !important;
+  background-color: #ffffff !important;
+}
