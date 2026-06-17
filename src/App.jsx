@@ -14,6 +14,11 @@ import BookingsManager from './pages/admin/BookingsManager'
 import PhotosManager from './pages/admin/PhotosManager'
 import AdminSettings from './pages/admin/AdminSettings'
 
+import WaterDamageRestoration from './pages/services/WaterDamageRestoration'
+import WaterMitigation from './pages/services/WaterMitigation'
+import CarpetCleaning from './pages/services/CarpetCleaning'
+import InsulationRemoval from './pages/services/InsulationRemoval'
+
 function PublicLayout() {
   return (
     <>
@@ -32,12 +37,16 @@ export default function App() {
         {/* Public site */}
         <Route element={<PublicLayout />}>
           <Route path="/" element={<><Hero /><Services /><WhyUs /><Contact /></>} />
+          <Route path="/services/water-damage-restoration" element={<WaterDamageRestoration />} />
+          <Route path="/services/water-mitigation"         element={<WaterMitigation />} />
+          <Route path="/services/carpet-cleaning"          element={<CarpetCleaning />} />
+          <Route path="/services/insulation-removal"       element={<InsulationRemoval />} />
         </Route>
 
         {/* Admin login */}
         <Route path="/admin/login" element={<AdminLogin />} />
 
-        {/* /admin → redirect to /admin/dashboard (ProtectedRoute handles auth → /admin/login) */}
+        {/* /admin → redirect to /admin/dashboard */}
         <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
 
         {/* Protected admin panel */}

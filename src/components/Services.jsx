@@ -1,6 +1,9 @@
+import { Link } from 'react-router-dom'
+
 const SERVICES = [
   {
     title: 'Water Damage Restoration',
+    route: '/services/water-damage-restoration',
     description:
       'Rapid response to flooding, leaks, and water intrusion. We extract, dry, and restore your property to pre-damage condition.',
     icon: (
@@ -12,6 +15,7 @@ const SERVICES = [
   },
   {
     title: 'Water Mitigation',
+    route: '/services/water-mitigation',
     description:
       'Proactive measures to minimize water damage before it spreads. Fast containment to protect your structure and belongings.',
     icon: (
@@ -23,6 +27,7 @@ const SERVICES = [
   },
   {
     title: 'Carpet Cleaning',
+    route: '/services/carpet-cleaning',
     description:
       'Deep cleaning solutions that remove dirt, stains, and allergens — leaving your carpets fresh, sanitized, and restored.',
     icon: (
@@ -34,6 +39,7 @@ const SERVICES = [
   },
   {
     title: 'Insulation Removal & Restoration',
+    route: '/services/insulation-removal',
     description:
       'Safe removal of damaged or contaminated insulation and full restoration to improve energy efficiency and air quality.',
     icon: (
@@ -68,16 +74,17 @@ export default function Services() {
 
         {/* Cards grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {SERVICES.map(({ title, description, icon }) => (
-            <div
+          {SERVICES.map(({ title, route, description, icon }) => (
+            <Link
               key={title}
-              className="group relative bg-[#0d1435] rounded-xl p-5 sm:p-8 flex flex-col gap-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_36px_rgba(46,127,255,0.22)] cursor-default"
+              to={route}
+              className="group relative bg-[#0d1435] rounded-xl p-5 sm:p-8 flex flex-col gap-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_8px_36px_rgba(46,127,255,0.22)]"
               style={{ border: '1px solid rgba(46,127,255,0.12)' }}
             >
               {/* Top accent bar */}
               <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-xl bg-brand-electric opacity-70 group-hover:opacity-100 transition-opacity duration-300" />
 
-              {/* Border brightens on hover via pseudo-border */}
+              {/* Hover border overlay */}
               <div
                 className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
                 style={{ border: '1px solid rgba(46,127,255,0.35)' }}
@@ -92,10 +99,24 @@ export default function Services() {
               </h3>
 
               {/* Description */}
-              <p className="font-sans text-brand-silver text-sm md:text-base leading-relaxed">
+              <p className="font-sans text-brand-silver text-sm md:text-base leading-relaxed flex-1">
                 {description}
               </p>
-            </div>
+
+              {/* Learn More */}
+              <span className="flex items-center gap-1.5 font-sans text-xs font-semibold tracking-wide text-brand-electric mt-auto">
+                Learn More
+                <svg
+                  width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                  className="group-hover:translate-x-1 transition-transform duration-200"
+                  aria-hidden="true"
+                >
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                  <polyline points="12 5 19 12 12 19" />
+                </svg>
+              </span>
+            </Link>
           ))}
         </div>
 
