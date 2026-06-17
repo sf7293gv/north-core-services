@@ -19,9 +19,14 @@ export default {
           '0%, 100%': { boxShadow: '0 0 8px 0px rgba(46,127,255,0.45)' },
           '50%':       { boxShadow: '0 0 22px 6px rgba(46,127,255,0.75), 0 0 44px 10px rgba(46,127,255,0.2)' },
         },
+        'whatsapp-glow': {
+          '0%, 100%': { boxShadow: '0 0 8px 0px rgba(37,211,102,0.45)' },
+          '50%':       { boxShadow: '0 0 22px 6px rgba(37,211,102,0.75), 0 0 44px 10px rgba(37,211,102,0.2)' },
+        },
       },
       animation: {
-        'glow-pulse': 'glow-pulse 2.8s ease-in-out infinite',
+        'glow-pulse':    'glow-pulse 2.8s ease-in-out infinite',
+        'whatsapp-glow': 'whatsapp-glow 2.8s ease-in-out infinite',
       },
     },
   },

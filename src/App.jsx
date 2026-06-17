@@ -18,6 +18,7 @@ import WaterDamageRestoration from './pages/services/WaterDamageRestoration'
 import WaterMitigation from './pages/services/WaterMitigation'
 import CarpetCleaning from './pages/services/CarpetCleaning'
 import InsulationRemoval from './pages/services/InsulationRemoval'
+import WhatsAppButton from './components/WhatsAppButton'
 
 function PublicLayout() {
   return (
@@ -25,6 +26,7 @@ function PublicLayout() {
       <Navbar />
       <Outlet />
       <Footer />
+      <WhatsAppButton />
     </>
   )
 }
