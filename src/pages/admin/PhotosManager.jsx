@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 
 const CATEGORIES = [
-  'Water Damage',
+  'Water Damage Restoration',
+  'Water Mitigation',
   'Fire Damage',
   'Mold Remediation',
   'Storm Damage',

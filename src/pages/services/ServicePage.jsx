@@ -30,11 +30,13 @@ export default function ServicePage({ serviceName, serviceKey, description, what
 
   useEffect(() => {
     async function fetchPhotos() {
-      const { data } = await supabase
+      console.log('[ServicePage] fetching photos for serviceKey:', serviceKey)
+      const { data, error } = await supabase
         .from('photos')
         .select('id, url, category')
         .eq('category', serviceKey)
         .order('created_at', { ascending: false })
+      console.log('[ServicePage] photos result:', { serviceKey, count: data?.length ?? 0, data, error })
       if (mounted.current) {
         setPhotos(data || [])
         setPhotosLoading(false)
