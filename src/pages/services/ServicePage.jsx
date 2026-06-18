@@ -33,8 +33,10 @@ export default function ServicePage({ serviceName, serviceKey, description, what
       console.log('[ServicePage] fetching photos for serviceKey:', serviceKey)
       const { data, error } = await supabase
         .from('photos')
-        .select('id, url, category')
+        .select('id, url, category, size, display_order')
         .eq('category', serviceKey)
+        .eq('visible', true)
+        .order('display_order', { ascending: true })
         .order('created_at', { ascending: false })
       console.log('[ServicePage] photos result:', { serviceKey, count: data?.length ?? 0, data, error })
       if (mounted.current) {
@@ -191,19 +193,24 @@ export default function ServicePage({ serviceName, serviceKey, description, what
             </p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {photos.map((photo) => (
-                <div
-                  key={photo.id}
-                  className="group overflow-hidden rounded-xl border border-brand-electric/20 hover:border-brand-electric/60 transition-all duration-300 hover:shadow-[0_8px_32px_rgba(46,127,255,0.18)]"
-                >
-                  <img
-                    src={photo.url}
-                    alt=""
-                    loading="lazy"
-                    className="w-full h-56 object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                </div>
-              ))}
+              {photos.map((photo) => {
+                const size    = photo.size ?? 'medium'
+                const isLarge = size === 'large'
+                const imgH    = size === 'small' ? 'h-44' : size === 'large' ? 'h-72' : 'h-56'
+                return (
+                  <div
+                    key={photo.id}
+                    className={`group overflow-hidden rounded-xl border border-brand-electric/20 hover:border-brand-electric/60 transition-all duration-300 hover:shadow-[0_8px_32px_rgba(46,127,255,0.18)] ${isLarge ? 'sm:col-span-2' : ''}`}
+                  >
+                    <img
+                      src={photo.url}
+                      alt=""
+                      loading="lazy"
+                      className={`w-full ${imgH} object-cover group-hover:scale-105 transition-transform duration-500`}
+                    />
+                  </div>
+                )
+              })}
             </div>
           )}
 
