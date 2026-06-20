@@ -253,13 +253,13 @@ export default function PhotosManager() {
       {/* Upload card */}
       <div className="rounded-xl border border-brand-electric/15 p-6 mb-8" style={{ background: '#0d1435' }}>
         <p className="font-display tracking-widest text-brand-white text-sm mb-4">UPLOAD PHOTO</p>
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-4">
+          <div className="flex flex-col gap-1.5 w-full sm:w-auto">
             <label className="text-xs font-semibold tracking-wider uppercase text-brand-silver/60">Category</label>
             <select
               value={category}
               onChange={e => setCategory(e.target.value)}
-              className="px-3 py-2.5 rounded-lg bg-brand-navy border border-brand-electric/20 text-brand-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-electric/40 transition-colors duration-200"
+              className="w-full sm:w-auto px-3 py-2.5 rounded-lg bg-brand-navy border border-brand-electric/20 text-brand-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-electric/40 transition-colors duration-200"
             >
               {CATEGORIES.map(c => (
                 <option key={c} value={c} style={{ background: '#0d1435' }}>{c}</option>

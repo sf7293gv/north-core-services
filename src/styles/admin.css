@@ -1524,6 +1524,10 @@
   .adm-stats,
   .dash-stats { grid-template-columns: 1fr; }
   .adm-form-row { grid-template-columns: 1fr; }
+  .adm-settings-section .adm-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 @media (max-width: 480px) {

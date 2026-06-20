@@ -11,6 +11,73 @@ function buildWaLink(phone) {
   return `https://wa.me/${number}?text=${WA_TEXT}`
 }
 
+/* ── Phone helpers ─────────────────────────────────────────── */
+function formatPhoneDisplay(digits) {
+  const d = (digits ?? '').replace(/\D/g, '').slice(0, 10)
+  if (d.length === 0) return ''
+  if (d.length <= 3) return `(${d}`
+  if (d.length <= 6) return `(${d.slice(0, 3)}) ${d.slice(3)}`
+  return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`
+}
+
+function displayPhone(digits) {
+  if (!digits || digits.length !== 10) return digits || ''
+  return `+1 (${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
+}
+
+/* ── Date helper ───────────────────────────────────────────── */
+function fmtDateDisplay(dateStr) {
+  if (!dateStr) return 'Not specified'
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', {
+    month: 'long', day: 'numeric', year: 'numeric',
+  })
+}
+
+/* ── Validation ────────────────────────────────────────────── */
+const NAME_RE  = /^[A-Za-z\s\-']+$/
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function validateName(v) {
+  const s = v.trim()
+  if (!s) return 'Full name is required'
+  if (s.length < 2) return 'Name must be at least 2 characters'
+  if (!NAME_RE.test(s)) return 'Letters, spaces, hyphens, and apostrophes only'
+  return null
+}
+
+function validatePhone(digits) {
+  if (!digits || digits.length === 0) return 'Phone number is required'
+  if (digits.replace(/\D/g, '').length !== 10) return 'Enter a valid 10-digit US phone number'
+  return null
+}
+
+function validateEmail(v) {
+  if (!v.trim()) return 'Email address is required'
+  if (!EMAIL_RE.test(v.trim())) return 'Enter a valid email address'
+  return null
+}
+
+function validateService(v) {
+  if (!v) return 'Please select a service'
+  return null
+}
+
+function validateDate(v) {
+  if (!v) return null
+  const [year, month, day] = v.split('-').map(Number)
+  const selected = new Date(year, month - 1, day)
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  if (selected < today) return 'Preferred date cannot be in the past'
+  return null
+}
+
+function validateMessage(v) {
+  if (v.length > 500) return 'Message cannot exceed 500 characters'
+  return null
+}
+
+/* ── Static data ───────────────────────────────────────────── */
 const INFO_ITEMS = [
   {
     label: 'Phone',
@@ -61,21 +128,17 @@ const SERVICE_OPTIONS = [
   'Other',
 ]
 
-const EMPTY_FORM = {
-  name: '',
-  phone: '',
-  email: '',
-  service: '',
-  date: '',
-  message: '',
-}
+const EMPTY_FORM = { name: '', phone: '', email: '', service: '', date: '', message: '' }
 
 export default function Contact() {
-  const [form, setForm] = useState(EMPTY_FORM)
-  const [submitted, setSubmitted] = useState(false)
-  const [loading, setLoading] = useState(false)
+  // form.phone stores raw digits only, e.g. "6122493134"
+  const [form, setForm]           = useState(EMPTY_FORM)
+  const [step, setStep]           = useState('form') // 'form' | 'confirm' | 'success'
+  const [loading, setLoading]     = useState(false)
   const [submitError, setSubmitError] = useState(null)
-  const [waLink, setWaLink] = useState(buildWaLink(null))
+  const [errors, setErrors]       = useState({})
+  const [touched, setTouched]     = useState({})
+  const [waLink, setWaLink]       = useState(buildWaLink(null))
 
   useEffect(() => {
     supabase
@@ -92,21 +155,70 @@ export default function Contact() {
     const { name, value } = e.target
     setForm(prev => ({ ...prev, [name]: value }))
     if (submitError) setSubmitError(null)
+    if (touched[name]) {
+      const err = name === 'phone' ? validatePhone(value) : validateField(name, value)
+      setErrors(prev => ({ ...prev, [name]: err }))
+    }
   }
 
-  async function handleSubmit(e) {
+  function handlePhoneChange(e) {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 10)
+    setForm(prev => ({ ...prev, phone: digits }))
+    if (submitError) setSubmitError(null)
+    if (touched.phone) {
+      setErrors(prev => ({ ...prev, phone: validatePhone(digits) }))
+    }
+  }
+
+  function handleBlur(e) {
+    const { name } = e.target
+    setTouched(prev => ({ ...prev, [name]: true }))
+    const value = name === 'phone' ? form.phone : e.target.value
+    const err = name === 'phone' ? validatePhone(value) : validateField(name, value)
+    setErrors(prev => ({ ...prev, [name]: err }))
+  }
+
+  function validateField(name, value) {
+    switch (name) {
+      case 'name':    return validateName(value)
+      case 'email':   return validateEmail(value)
+      case 'service': return validateService(value)
+      case 'date':    return validateDate(value)
+      case 'message': return validateMessage(value)
+      default:        return null
+    }
+  }
+
+  function handleSubmit(e) {
     e.preventDefault()
+    const allErrors = {
+      name:    validateName(form.name),
+      phone:   validatePhone(form.phone),
+      email:   validateEmail(form.email),
+      service: validateService(form.service),
+      date:    validateDate(form.date),
+      message: validateMessage(form.message),
+    }
+    setErrors(allErrors)
+    setTouched({ name: true, phone: true, email: true, service: true, date: true, message: true })
+    if (Object.values(allErrors).some(err => err !== null)) return
+    setStep('confirm')
+  }
+
+  async function handleConfirm() {
     setLoading(true)
     setSubmitError(null)
 
-    const { error } = await supabase.from('bookings').insert([{
+    const payload = {
       full_name:      form.name,
-      phone:          form.phone,
+      phone:          form.phone ? `+1${form.phone}` : '',
       email:          form.email,
       service:        form.service,
       preferred_date: form.date || null,
       message:        form.message,
-    }])
+    }
+
+    const { error } = await supabase.from('bookings').insert([payload])
 
     setLoading(false)
 
@@ -116,12 +228,38 @@ export default function Contact() {
       return
     }
 
-    setSubmitted(true)
+    // Fire-and-forget — don't block success UI if email fails
+    supabase.functions
+      .invoke('send-booking-email', { body: payload })
+      .then(({ error: fnErr }) => {
+        if (fnErr) console.error('send-booking-email error:', fnErr)
+      })
+
+    setStep('success')
     setForm(EMPTY_FORM)
+    setErrors({})
+    setTouched({})
   }
+
+  const isValid = (
+    !validateName(form.name) &&
+    !validatePhone(form.phone) &&
+    !validateEmail(form.email) &&
+    !validateService(form.service) &&
+    !validateDate(form.date) &&
+    !validateMessage(form.message)
+  )
+
+  const todayStr = new Date().toISOString().slice(0, 10)
 
   const inputBase =
     'w-full rounded-lg px-4 py-3 bg-[#0d1435] text-brand-white text-sm placeholder:text-brand-silver/40 border border-brand-electric/30 focus:outline-none focus:ring-2 focus:ring-brand-electric/60 focus:border-brand-electric transition-colors duration-200'
+
+  function FieldError({ name }) {
+    return touched[name] && errors[name]
+      ? <p className="text-xs text-red-400 mt-1">{errors[name]}</p>
+      : null
+  }
 
   return (
     <section
@@ -157,23 +295,14 @@ export default function Contact() {
                   {icon}
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <span className="font-sans font-semibold text-sm text-brand-white tracking-wide">
-                    {label}
-                  </span>
-                  <span className="font-sans text-sm text-brand-silver leading-relaxed">
-                    {value}
-                  </span>
+                  <span className="font-sans font-semibold text-sm text-brand-white tracking-wide">{label}</span>
+                  <span className="font-sans text-sm text-brand-silver leading-relaxed">{value}</span>
                 </div>
               </div>
             ))}
 
             {/* WhatsApp card */}
-            <a
-              href={waLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-start gap-4 group"
-            >
+            <a href={waLink} target="_blank" rel="noopener noreferrer" className="flex items-start gap-4 group">
               <div
                 className="mt-0.5 shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
                 style={{ backgroundColor: 'rgba(37,211,102,0.12)', color: '#25D366' }}
@@ -183,13 +312,8 @@ export default function Contact() {
                 </svg>
               </div>
               <div className="flex flex-col gap-0.5">
-                <span className="font-sans font-semibold text-sm text-brand-white tracking-wide">
-                  WhatsApp
-                </span>
-                <span
-                  className="font-sans text-sm leading-relaxed group-hover:underline underline-offset-2"
-                  style={{ color: '#25D366' }}
-                >
+                <span className="font-sans font-semibold text-sm text-brand-white tracking-wide">WhatsApp</span>
+                <span className="font-sans text-sm leading-relaxed group-hover:underline underline-offset-2" style={{ color: '#25D366' }}>
                   Message us directly
                 </span>
               </div>
@@ -200,91 +324,157 @@ export default function Contact() {
             </p>
           </div>
 
-          {/* Right — booking form */}
+          {/* Right — form / confirm / success */}
           <div>
-            {submitted ? (
+
+            {/* ── Success ── */}
+            {step === 'success' && (
               <div className="flex flex-col items-center justify-center gap-4 py-20 text-center rounded-xl border border-brand-electric/20 bg-[#0d1435]">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="w-12 h-12 text-brand-electric">
                   <circle cx="12" cy="12" r="10" />
                   <path d="M9 12l2 2 4-4" />
                 </svg>
-                <p className="font-display text-3xl text-brand-electric tracking-wide">
-                  Message Received
-                </p>
+                <p className="font-display text-3xl text-brand-electric tracking-wide">Message Received</p>
                 <p className="font-sans text-brand-silver text-sm max-w-xs leading-relaxed">
                   Thank you! We'll be in touch shortly.
                 </p>
                 <button
-                  onClick={() => setSubmitted(false)}
+                  onClick={() => setStep('form')}
                   className="mt-2 text-xs text-brand-electric/70 hover:text-brand-electric underline underline-offset-2 transition-colors duration-200"
                 >
                   Send another message
                 </button>
               </div>
-            ) : (
+            )}
+
+            {/* ── Confirm ── */}
+            {step === 'confirm' && (
+              <div className="rounded-xl border border-brand-electric/20 bg-[#0d1435] p-6 flex flex-col gap-5">
+                <div>
+                  <p className="font-display text-xl tracking-widest text-brand-electric mb-1">REVIEW YOUR REQUEST</p>
+                  <p className="font-sans text-xs text-brand-silver/50">Please confirm your information before submitting.</p>
+                </div>
+
+                <dl className="flex flex-col gap-3.5">
+                  {[
+                    { label: 'Name',           value: form.name },
+                    { label: 'Phone',          value: displayPhone(form.phone) },
+                    { label: 'Email',          value: form.email },
+                    { label: 'Service',        value: form.service },
+                    { label: 'Preferred Date', value: fmtDateDisplay(form.date) },
+                    { label: 'Message',        value: form.message || 'None' },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-4">
+                      <dt className="font-sans text-[11px] font-semibold text-brand-silver/40 uppercase tracking-wider sm:w-28 shrink-0 mt-0.5">
+                        {label}
+                      </dt>
+                      <dd className={`font-sans text-sm leading-relaxed break-words ${label === 'Message' ? 'text-brand-silver/70 whitespace-pre-wrap' : 'text-brand-white'}`}>
+                        {value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+
+                <div className="flex gap-3 pt-1">
+                  <button
+                    onClick={() => setStep('form')}
+                    className="flex-1 py-3 rounded-lg border border-brand-electric/25 text-brand-silver hover:text-brand-white hover:border-brand-electric/50 text-sm font-semibold transition-colors duration-200"
+                  >
+                    ← Edit
+                  </button>
+                  <button
+                    onClick={handleConfirm}
+                    disabled={loading}
+                    className="flex-[2] py-3 rounded-lg bg-brand-electric text-white font-display text-xl tracking-widest hover:bg-[#2570e8] active:bg-[#1f60d0] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                  >
+                    {loading ? 'SUBMITTING…' : 'CONFIRM & SUBMIT'}
+                  </button>
+                </div>
+
+                {submitError && (
+                  <p className="font-sans text-sm text-red-400 text-center leading-relaxed">{submitError}</p>
+                )}
+              </div>
+            )}
+
+            {/* ── Form ── */}
+            {step === 'form' && (
               <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
 
                 {/* Name + Phone */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <label htmlFor="name" className="font-sans text-xs font-semibold text-brand-silver tracking-wide uppercase">
+                    <label htmlFor="c-name" className="font-sans text-xs font-semibold text-brand-silver tracking-wide uppercase">
                       Full Name <span className="text-brand-electric">*</span>
                     </label>
                     <input
-                      id="name"
+                      id="c-name"
                       name="name"
                       type="text"
                       required
                       placeholder="Jane Smith"
                       value={form.name}
                       onChange={handleChange}
+                      onBlur={handleBlur}
                       className={inputBase}
                     />
+                    <FieldError name="name" />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label htmlFor="phone" className="font-sans text-xs font-semibold text-brand-silver tracking-wide uppercase">
-                      Phone Number
+                    <label htmlFor="c-phone" className="font-sans text-xs font-semibold text-brand-silver tracking-wide uppercase">
+                      Phone Number <span className="text-brand-electric">*</span>
                     </label>
-                    <input
-                      id="phone"
-                      name="phone"
-                      type="tel"
-                      placeholder="(XXX) XXX-XXXX"
-                      value={form.phone}
-                      onChange={handleChange}
-                      className={inputBase}
-                    />
+                    <div className={`flex items-center rounded-lg bg-[#0d1435] border ${touched.phone && errors.phone ? 'border-red-400/60' : 'border-brand-electric/30'} focus-within:ring-2 focus-within:ring-brand-electric/60 focus-within:border-brand-electric transition-colors duration-200`}>
+                      <span className="pl-3 pr-2.5 py-3 text-sm font-medium text-brand-silver/50 border-r border-brand-electric/20 select-none shrink-0">
+                        +1
+                      </span>
+                      <input
+                        id="c-phone"
+                        name="phone"
+                        type="tel"
+                        inputMode="numeric"
+                        placeholder="(612) 249-3134"
+                        value={formatPhoneDisplay(form.phone)}
+                        onChange={handlePhoneChange}
+                        onBlur={handleBlur}
+                        className="flex-1 px-3 py-3 bg-transparent text-brand-white text-sm placeholder:text-brand-silver/40 focus:outline-none"
+                      />
+                    </div>
+                    <FieldError name="phone" />
                   </div>
                 </div>
 
                 {/* Email */}
                 <div className="flex flex-col gap-1.5">
-                  <label htmlFor="email" className="font-sans text-xs font-semibold text-brand-silver tracking-wide uppercase">
+                  <label htmlFor="c-email" className="font-sans text-xs font-semibold text-brand-silver tracking-wide uppercase">
                     Email Address <span className="text-brand-electric">*</span>
                   </label>
                   <input
-                    id="email"
+                    id="c-email"
                     name="email"
                     type="email"
                     required
                     placeholder="you@example.com"
                     value={form.email}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     className={inputBase}
                   />
+                  <FieldError name="email" />
                 </div>
 
                 {/* Service + Date */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <label htmlFor="service" className="font-sans text-xs font-semibold text-brand-silver tracking-wide uppercase">
-                      Service Needed
+                    <label htmlFor="c-service" className="font-sans text-xs font-semibold text-brand-silver tracking-wide uppercase">
+                      Service Needed <span className="text-brand-electric">*</span>
                     </label>
                     <select
-                      id="service"
+                      id="c-service"
                       name="service"
                       value={form.service}
                       onChange={handleChange}
+                      onBlur={handleBlur}
                       className={inputBase + ' cursor-pointer'}
                     >
                       <option value="" disabled>Select a service…</option>
@@ -292,58 +482,62 @@ export default function Contact() {
                         <option key={opt} value={opt}>{opt}</option>
                       ))}
                     </select>
+                    <FieldError name="service" />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label htmlFor="date" className="font-sans text-xs font-semibold text-brand-silver tracking-wide uppercase">
+                    <label htmlFor="c-date" className="font-sans text-xs font-semibold text-brand-silver tracking-wide uppercase">
                       Preferred Date
                     </label>
                     <input
-                      id="date"
+                      id="c-date"
                       name="date"
                       type="date"
                       value={form.date}
+                      min={todayStr}
                       onChange={handleChange}
+                      onBlur={handleBlur}
                       className={inputBase + ' [color-scheme:dark]'}
                     />
+                    <FieldError name="date" />
                   </div>
                 </div>
 
                 {/* Message */}
                 <div className="flex flex-col gap-1.5">
-                  <label htmlFor="message" className="font-sans text-xs font-semibold text-brand-silver tracking-wide uppercase">
-                    Message / Details
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="c-message" className="font-sans text-xs font-semibold text-brand-silver tracking-wide uppercase">
+                      Message / Details
+                    </label>
+                    <span className={`text-xs tabular-nums ${form.message.length > 500 ? 'text-red-400 font-semibold' : 'text-brand-silver/40'}`}>
+                      {form.message.length} / 500
+                    </span>
+                  </div>
                   <textarea
-                    id="message"
+                    id="c-message"
                     name="message"
                     rows={4}
                     placeholder="Describe the damage or service needed…"
                     value={form.message}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     className={inputBase + ' resize-none'}
                   />
+                  <FieldError name="message" />
                 </div>
 
                 {/* Submit */}
                 <button
                   type="submit"
-                  disabled={loading}
-                  className="animate-glow-pulse w-full mt-2 py-4 rounded-lg bg-brand-electric text-white font-display text-2xl tracking-widest hover:bg-[#2570e8] active:bg-[#1f60d0] disabled:opacity-60 disabled:cursor-not-allowed transition-colors duration-200"
+                  disabled={!isValid}
+                  className="animate-glow-pulse w-full mt-2 py-4 rounded-lg bg-brand-electric text-white font-display text-2xl tracking-widest hover:bg-[#2570e8] active:bg-[#1f60d0] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                 >
-                  {loading ? 'SENDING...' : 'SEND REQUEST'}
+                  SEND REQUEST
                 </button>
-
-                {/* Error message */}
-                {submitError && (
-                  <p className="font-sans text-sm text-red-400 text-center leading-relaxed">
-                    {submitError}
-                  </p>
-                )}
 
               </form>
             )}
-          </div>
 
+          </div>
         </div>
       </div>
     </section>

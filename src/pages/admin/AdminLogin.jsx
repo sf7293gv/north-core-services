@@ -34,11 +34,11 @@ export default function AdminLogin() {
   return (
     <div className="min-h-screen bg-brand-navy flex items-center justify-center p-6">
       <div
-        className="w-full max-w-md rounded-2xl p-10 border border-brand-electric/15"
+        className="w-full max-w-md rounded-2xl p-6 sm:p-10 border border-brand-electric/15"
         style={{ background: '#0d1435', boxShadow: '0 24px 80px rgba(0,0,0,0.6)' }}
       >
         <div className="text-center mb-8">
-          <div className="font-display text-3xl tracking-widest text-brand-white mb-2">
+          <div className="font-display text-2xl sm:text-3xl tracking-widest text-brand-white mb-2">
             NORTH CORE SERVICES
           </div>
           <div className="inline-block text-xs font-semibold tracking-[0.2em] uppercase text-brand-silver/50 bg-brand-electric/10 px-3 py-1 rounded-full">

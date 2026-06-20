@@ -3,10 +3,11 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 
 const STAT_COLORS = {
-  total:     { ring: 'border-brand-electric/30', icon: 'text-brand-electric bg-brand-electric/10' },
-  new:       { ring: 'border-blue-400/30',        icon: 'text-blue-400 bg-blue-400/10' },
-  scheduled: { ring: 'border-purple-400/30',      icon: 'text-purple-400 bg-purple-400/10' },
-  completed: { ring: 'border-green-400/30',        icon: 'text-green-400 bg-green-400/10' },
+  total:     { ring: 'border-brand-electric/30',  icon: 'text-brand-electric bg-brand-electric/10' },
+  new:       { ring: 'border-blue-400/30',         icon: 'text-blue-400 bg-blue-400/10' },
+  scheduled: { ring: 'border-purple-400/30',       icon: 'text-purple-400 bg-purple-400/10' },
+  completed: { ring: 'border-green-400/30',         icon: 'text-green-400 bg-green-400/10' },
+  unseen:    { ring: 'border-brand-electric/50',   icon: 'text-brand-electric bg-brand-electric/15' },
 }
 
 export default function Dashboard() {
@@ -21,18 +22,27 @@ export default function Dashboard() {
         { count: newCount },
         { count: scheduled },
         { count: completed },
+        { count: unseenCount },
         { data: recentRows },
       ] = await Promise.all([
         supabase.from('bookings').select('*', { count: 'exact', head: true }),
         supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'new'),
         supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'scheduled'),
         supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'completed'),
+        supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('seen', false),
         supabase.from('bookings')
           .select('id, full_name, service, status, created_at')
+          .eq('seen', false)
           .order('created_at', { ascending: false })
-          .limit(5),
+          .limit(8),
       ])
-      setCounts({ total: total ?? 0, new: newCount ?? 0, scheduled: scheduled ?? 0, completed: completed ?? 0 })
+      setCounts({
+        total:     total        ?? 0,
+        new:       newCount     ?? 0,
+        scheduled: scheduled    ?? 0,
+        completed: completed    ?? 0,
+        unseen:    unseenCount  ?? 0,
+      })
       setRecent(recentRows ?? [])
       setLoading(false)
     }
@@ -50,12 +60,13 @@ export default function Dashboard() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         {[
-          { key: 'total',     label: 'Total Bookings', icon: <CalendarIcon /> },
-          { key: 'new',       label: 'New',            icon: <InboxIcon /> },
-          { key: 'scheduled', label: 'Scheduled',      icon: <ClockIcon /> },
-          { key: 'completed', label: 'Completed',      icon: <CheckIcon /> },
+          { key: 'total',     label: 'Total',     icon: <CalendarIcon /> },
+          { key: 'new',       label: 'New',       icon: <InboxIcon /> },
+          { key: 'scheduled', label: 'Scheduled', icon: <ClockIcon /> },
+          { key: 'completed', label: 'Completed', icon: <CheckIcon /> },
+          { key: 'unseen',    label: 'Unseen',    icon: <EyeOffIcon /> },
         ].map(({ key, label, icon }) => (
           <div
             key={key}
@@ -65,22 +76,18 @@ export default function Dashboard() {
             <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${STAT_COLORS[key].icon}`}>
               {icon}
             </div>
-            <div>
-              <div className="text-2xl font-bold text-brand-white leading-none mb-0.5">
-                {v(key)}
-              </div>
-              <div className="text-xs font-semibold tracking-wide uppercase text-brand-silver/60">
-                {label}
-              </div>
+            <div className="min-w-0">
+              <div className="text-2xl font-bold text-brand-white leading-none mb-0.5">{v(key)}</div>
+              <div className="text-xs font-semibold tracking-wide uppercase text-brand-silver/60 truncate">{label}</div>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Recent bookings */}
+      {/* New / unseen bookings */}
       <div className="rounded-xl border border-brand-electric/15 overflow-hidden" style={{ background: '#0d1435' }}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-brand-electric/10">
-          <span className="font-display tracking-widest text-brand-white text-sm">RECENT BOOKINGS</span>
+          <span className="font-display tracking-widest text-brand-white text-sm">NEW BOOKINGS</span>
           <Link
             to="/admin/bookings"
             className="text-xs text-brand-electric/70 hover:text-brand-electric transition-colors duration-200"
@@ -95,17 +102,22 @@ export default function Dashboard() {
             Loading…
           </div>
         ) : recent.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-3 text-brand-silver/40">
-            <CalendarIcon size={28} />
-            <span className="text-sm">No bookings yet</span>
+          <div className="flex flex-col items-center justify-center py-14 gap-3 text-brand-silver/40">
+            <AllCaughtUpIcon />
+            <span className="text-sm font-medium text-center px-6">
+              No new bookings — you're all caught up!
+            </span>
           </div>
         ) : (
           <div className="divide-y divide-brand-electric/8">
             {recent.map(b => (
-              <div key={b.id} className="flex items-center justify-between px-6 py-3.5">
-                <div>
-                  <div className="text-sm font-semibold text-brand-white">{b.full_name}</div>
-                  <div className="text-xs text-brand-silver/60 mt-0.5">{b.service ?? '—'}</div>
+              <div
+                key={b.id}
+                className="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-3.5 border-l-[3px] border-l-brand-electric"
+              >
+                <div className="min-w-0 mr-3">
+                  <div className="text-sm font-semibold text-brand-white truncate">{b.full_name}</div>
+                  <div className="text-xs text-brand-silver/60 truncate mt-0.5">{b.service ?? '—'}</div>
                 </div>
                 <StatusBadge status={b.status} />
               </div>
@@ -126,7 +138,7 @@ function StatusBadge({ status }) {
     cancelled: 'text-red-400 bg-red-400/10',
   }
   return (
-    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${map[status] ?? 'text-brand-silver/60 bg-brand-silver/10'}`}>
+    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize shrink-0 ${map[status] ?? 'text-brand-silver/60 bg-brand-silver/10'}`}>
       {status ?? 'new'}
     </span>
   )
@@ -170,6 +182,24 @@ function CheckIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <polyline points="20 6 9 17 4 12"/>
+    </svg>
+  )
+}
+
+function EyeOffIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>
+  )
+}
+
+function AllCaughtUpIcon() {
+  return (
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M9 12l2 2 4-4"/>
     </svg>
   )
 }
